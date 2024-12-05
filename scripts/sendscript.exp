@@ -1,0 +1,129 @@
+#!/usr/bin/expect -f
+set device [lindex $argv 0]
+set file [lindex $argv 1]
+set timeout -1
+set debug 0
+
+set f [open $file]
+set cmds [split [read $f] "\n"]
+close $f
+
+spawn picocom -g seriallog.txt -b 38400 $device
+
+proc waittftpcmdline { cmd } {
+	expect {
+		"?Invalid command" {
+			interact
+		}
+		"tftp>" {
+		}
+	}
+}
+
+proc waitcmdline { cmd } {
+	expect {
+		"Switch core initialization success!" {
+			# interrupt boot loader
+			send \033A
+			waitcmdline $cmd
+		}
+
+		"Unknown command !" {
+			expect "<RealTek>"
+			send $cmd
+			send "\r"
+			waitcmdline $cmd
+		}
+
+		"<RealTek>" {
+		}
+
+		"Jump to address=" {
+			interact {
+				-o "Switch core initialization success!" {
+					# interrupt boot loader
+					send \033A
+					waitcmdline $cmd
+				}
+			}
+			send_user "\r\nUser interaction terminated.\r\n"
+			exit
+		}
+	}
+}
+
+expect {
+	"Terminal ready" {
+		send "\r"
+	}
+}
+
+waitcmdline ""
+
+set mode "picocom"
+
+foreach cmd $cmds {
+	if { $debug!=0 } {
+		send_user "\r\n"
+		send_user "mode: $mode\r\n"
+		send_user "cmd: $cmd\r\n"
+	}
+	#set cmdargs [regexp -all -inline {\S+} $cmd]
+	set cmdargs [split $cmd " "]
+	set basecmd [regexp -inline {\S+} $cmd]
+	if { $debug!=0 } {
+		send_user "basecmd: $basecmd\r\n"
+	}
+
+	if { $mode=="picocom" } {
+		if { $basecmd=="atftp" } {
+			set old_spawn_id $spawn_id
+			eval spawn $cmdargs
+			expect -timeout -1 eof
+			set spawn_id $old_spawn_id
+			expect "Success!"
+			expect "<RealTek>"
+			send "\r"
+		} elseif { $basecmd=="tftp" } {
+			set old_spawn_id $spawn_id
+			eval spawn $cmdargs
+			set mode "tftp"
+
+			expect "tftp>"
+		} else {
+			send $cmd
+			send "\r"
+
+			waitcmdline $cmd
+		}
+	} elseif { $mode=="tftp" } {
+		if { $basecmd=="quit" } {
+			send $cmd
+			send "\r"
+
+			expect -timeout -1 eof
+
+			set spawn_id $old_spawn_id
+			set mode "picocom"
+
+			expect "Success!"
+			expect "<RealTek>"
+			send "\r"
+			expect "<RealTek>"
+		} else {
+			send $cmd
+			send "\r"
+
+			waittftpcmdline $cmd
+		}
+	} else {
+		send_user "\r\nInvalid mode $mode\r\n"
+		exit
+	}
+}
+
+send_user "\r\nLast command executed.\r\n"
+
+interact
+close
+exit

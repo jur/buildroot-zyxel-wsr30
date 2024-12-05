@@ -1,0 +1,22 @@
+OUTPUT_FORMAT("elf32-tradbigmips")
+OUTPUT_ARCH("mips:isa32r2")
+ENTRY(_start)
+
+SECTIONS
+{
+    .text LOADERADDR : {
+        *(.text)
+    }
+
+    .data : {
+        *(.data)
+    }
+
+    .rodata : {
+        *(.rodata*)
+    }
+
+    .bss : {
+        *(.bss)
+    }
+}
