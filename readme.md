@@ -5,7 +5,7 @@ serial adapter; i.e. you need to solder to jumper J18.
 
 ## Install packages
 Run the following script to install packages required for building and testing
-on ubnutu or debian:
+on ubuntu or debian, for example Ubuntu 22.04.5 LTS:
 ```./install-packages.sh```
 
 ## Build
@@ -32,5 +32,5 @@ Otherwise you have to manually switch on when asked.
 Edit config.sh and change serial device and power socket when something
 different is used.
 Run the following script:
-```run-via-tftp.sh```
+```./run-via-tftp.sh```
 Press CTRL + A and then CTRL + X to terminate and power off.
